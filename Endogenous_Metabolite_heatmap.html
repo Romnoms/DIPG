@@ -1,0 +1,613 @@
+
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Endogenous Metabolite - DIPG Cell Inhibition Heatmap</title>
+        <style>
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+            
+            @keyframes fadeIn {
+                from { opacity: 0; transform: translateY(20px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+            
+            @keyframes pulse {
+                0% { transform: scale(1); }
+                50% { transform: scale(1.05); }
+                100% { transform: scale(1); }
+            }
+            
+            @keyframes shimmer {
+                0% { background-position: -1000px 0; }
+                100% { background-position: 1000px 0; }
+            }
+            
+            body { 
+                font-family: Verdana, Arial, sans-serif; 
+                margin: 0; 
+                background: linear-gradient(135deg, #F5F5F5 0%, #E8E8E8 100%);
+                min-height: 100vh;
+                padding: 20px;
+                color: #000000;
+                line-height: 1.4;
+            }
+            
+            .container {
+                max-width: 100%;
+                margin: 0 auto;
+                background: #FFFFFF;
+                border-radius: 12px;
+                box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+                overflow: hidden;
+                border: 1px solid #CCCCCC;
+                animation: fadeIn 0.6s ease-out;
+            }
+            
+            .header { 
+                text-align: center; 
+                padding: 30px 20px; 
+                background: linear-gradient(135deg, #E8E8E8 0%, #D8D8D8 100%);
+                color: #000000;
+                border-bottom: 2px solid #CCCCCC;
+                position: relative;
+                overflow: hidden;
+            }
+            
+            .header::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: -1000px;
+                width: 100%;
+                height: 100%;
+                background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+                animation: shimmer 3s infinite;
+            }
+            
+            .header h1 {
+                font-size: 2.2em;
+                margin-bottom: 10px;
+                font-weight: bold;
+                color: #000000;
+                animation: fadeIn 0.8s ease-out;
+            }
+            
+            .header p {
+                font-size: 1.1em;
+                color: #333333;
+                font-weight: normal;
+                animation: fadeIn 1s ease-out;
+            }
+            
+            .stats { 
+                display: grid; 
+                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); 
+                gap: 20px; 
+                padding: 30px; 
+                background: #F8F8F8;
+            }
+            
+            .stat-card { 
+                background: #FFFFFF; 
+                padding: 20px; 
+                border-radius: 12px; 
+                box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+                text-align: center;
+                border: 1px solid #DDDDDD;
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                cursor: pointer;
+                position: relative;
+                overflow: hidden;
+            }
+            
+            .stat-card::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: linear-gradient(135deg, transparent, rgba(0,0,0,0.05));
+                opacity: 0;
+                transition: opacity 0.3s ease;
+            }
+            
+            .stat-card:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+                border-color: #AAAAAA;
+            }
+            
+            .stat-card:hover::before {
+                opacity: 1;
+            }
+            
+            .stat-card h3 {
+                color: #000000;
+                margin-bottom: 10px;
+                font-size: 1.1em;
+                font-weight: bold;
+            }
+            
+            .stat-card p {
+                color: #000000;
+                font-size: 1.2em;
+                font-weight: normal;
+                animation: pulse 2s infinite;
+            }
+            
+            .stat-card small {
+                color: #333333;
+                font-size: 0.9em;
+            }
+            
+            .heatmap-container { 
+                overflow-x: auto; 
+                padding: 30px;
+                background: #FFFFFF;
+                scrollbar-width: thin;
+                scrollbar-color: #CCCCCC #F0F0F0;
+            }
+            
+            .heatmap-container::-webkit-scrollbar {
+                height: 10px;
+            }
+            
+            .heatmap-container::-webkit-scrollbar-track {
+                background: #F0F0F0;
+                border-radius: 5px;
+            }
+            
+            .heatmap-container::-webkit-scrollbar-thumb {
+                background: #CCCCCC;
+                border-radius: 5px;
+                transition: background 0.3s ease;
+            }
+            
+            .heatmap-container::-webkit-scrollbar-thumb:hover {
+                background: #AAAAAA;
+            }
+            
+            .heatmap { 
+                display: grid; 
+                grid-template-columns: 300px repeat(2, 120px); 
+                gap: 3px; 
+                min-width: 600px;
+                margin: 0 auto;
+            }
+            
+            .header-cell {
+                padding: 15px 10px; 
+                font-weight: bold; 
+                text-align: center;
+                background: linear-gradient(135deg, #DDDDDD 0%, #CCCCCC 100%);
+                color: #000000;
+                border: 1px solid #AAAAAA;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 1.1em;
+                box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+                transition: all 0.3s ease;
+            }
+            
+            .header-cell:hover {
+                background: linear-gradient(135deg, #CCCCCC 0%, #BBBBBB 100%);
+                transform: scale(1.02);
+            }
+            
+            .drug-label { 
+                padding: 8px 15px; 
+                font-size: 13px; 
+                font-weight: bold;
+                text-align: left;
+                background: linear-gradient(90deg, #E0E0E0 0%, #D8D8D8 100%);
+                color: #000000;
+                border: 1px solid #AAAAAA;
+                display: flex;
+                align-items: center;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                transition: all 0.3s ease;
+                cursor: pointer;
+                position: relative;
+            }
+            
+            .drug-label::after {
+                content: '→';
+                position: absolute;
+                right: 10px;
+                opacity: 0;
+                transition: all 0.3s ease;
+            }
+            
+            .drug-label:hover {
+                background: linear-gradient(90deg, #D8D8D8 0%, #CCCCCC 100%);
+                padding-right: 30px;
+                transform: translateX(5px);
+            }
+            
+            .drug-label:hover::after {
+                opacity: 1;
+                right: 15px;
+            }
+            
+            .heatmap-cell { 
+                padding: 12px 8px; 
+                text-align: center; 
+                font-size: 12px; 
+                font-weight: bold;
+                color: #000000;
+                cursor: pointer;
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                border: 1px solid #888888;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                min-height: 40px;
+                position: relative;
+                overflow: hidden;
+            }
+            
+            .heatmap-cell::before {
+                content: '';
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                width: 0;
+                height: 0;
+                background: rgba(255,255,255,0.3);
+                border-radius: 50%;
+                transform: translate(-50%, -50%);
+                transition: width 0.6s ease, height 0.6s ease;
+            }
+            
+            .heatmap-cell:hover { 
+                transform: scale(1.15) rotate(2deg); 
+                z-index: 20;
+                box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+                border: 2px solid #000000;
+            }
+            
+            .heatmap-cell:hover::before {
+                width: 120%;
+                height: 120%;
+            }
+            
+            .heatmap-cell:active {
+                transform: scale(1.1) rotate(0deg);
+            }
+            
+            .legend { 
+                margin: 30px; 
+                padding: 25px; 
+                background: linear-gradient(135deg, #FFFFFF 0%, #F8F8F8 100%);
+                border: 1px solid #CCCCCC;
+                border-radius: 12px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+                animation: fadeIn 1.2s ease-out;
+            }
+            
+            .legend h3 {
+                color: #000000;
+                margin-bottom: 15px;
+                text-align: center;
+                font-weight: bold;
+                position: relative;
+                padding-bottom: 10px;
+            }
+            
+            .legend h3::after {
+                content: '';
+                position: absolute;
+                bottom: 0;
+                left: 50%;
+                transform: translateX(-50%);
+                width: 50px;
+                height: 2px;
+                background: #AAAAAA;
+                transition: width 0.3s ease;
+            }
+            
+            .legend:hover h3::after {
+                width: 100px;
+            }
+            
+            .color-scale { 
+                display: grid;
+                grid-template-columns: repeat(5, 1fr);
+                gap: 4px;
+                height: 50px; 
+                margin: 15px 0;
+                border: 1px solid #888888;
+                border-radius: 8px;
+                overflow: hidden;
+                box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+            }
+            
+            .color-scale div { 
+                display: flex; 
+                align-items: center; 
+                justify-content: center;
+                font-size: 11px;
+                font-weight: bold;
+                color: #000000;
+                text-align: center;
+                padding: 5px;
+                border-right: 1px solid #666666;
+                transition: all 0.3s ease;
+                cursor: pointer;
+                position: relative;
+            }
+            
+            .color-scale div:last-child {
+                border-right: none;
+            }
+            
+            .color-scale div:hover {
+                transform: scale(1.1);
+                z-index: 10;
+                box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            }
+            
+            .tooltip {
+                position: absolute;
+                background: #FFFFFF;
+                color: #000000;
+                padding: 15px;
+                border: 2px solid #333333;
+                border-radius: 8px;
+                font-size: 12px;
+                pointer-events: none;
+                z-index: 1000;
+                display: none;
+                max-width: 300px;
+                box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+                animation: fadeIn 0.3s ease-out;
+            }
+            
+            .interpretation {
+                background: linear-gradient(135deg, #F0F0F0 0%, #E8E8E8 100%);
+                color: #000000;
+                padding: 20px;
+                margin: 0;
+                text-align: center;
+                border-bottom: 1px solid #CCCCCC;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>Endogenous Metabolite</h1>
+                <p>DIPG Cell Inhibition Analysis</p>
+                <p><strong>Drug Efficacy Heatmap</strong></p>
+            </div>
+            
+            <div class="interpretation">
+                <p><strong>Interpretation:</strong> Higher values = Better inhibition (more cells killed)</p>
+                <p>Warm colors (Orange/Red) = High cell inhibition (effective) | Cool colors (Blue) = Cell growth/low inhibition (ineffective)</p>
+            </div>
+            
+            <div class="stats">
+                <div class="stat-card">
+                    <h3>Total Drugs</h3>
+                    <p>20</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Best Inhibitor</h3>
+                    <p>Cyclo(his-pro) (TFA)<br><small>Score: 60.71</small></p>
+                </div>
+                <div class="stat-card">
+                    <h3>Worst Performer</h3>
+                    <p>Anserine<br><small>Score: -40.77</small></p>
+                </div>
+                <div class="stat-card">
+                    <h3>Average Inhibition</h3>
+                    <p>DIPG 4: -2.2%<br>DIPG 17: -0.1%</p>
+                </div>
+            </div>
+            
+            <div class="heatmap-container">
+                <div class="heatmap">
+                    <!-- Header row -->
+                    <div class="header-cell">Drug Name</div>
+                    <div class="header-cell">DIPG 4</div>
+                    <div class="header-cell">DIPG 17</div>
+    <div class="drug-label" title="Cyclo(his-pro) (TFA)">Cyclo(his-pro) (TFA)</div>
+<div class="heatmap-cell" style="background-color: #D73027" 
+                           title="Cyclo(his-pro) (TFA): DIPG 4 = 53.69% inhibition"
+                           onclick="showTooltip(event, 'Cyclo(his-pro) (TFA)', 'DIPG 4', 53.69, 'Endogenous Metabolite; NF-κB', 'Metabolic Enzyme/Protease; NF-κB')">53.7%</div>
+<div class="heatmap-cell" style="background-color: #D73027" 
+                           title="Cyclo(his-pro) (TFA): DIPG 17 = 67.72% inhibition"
+                           onclick="showTooltip(event, 'Cyclo(his-pro) (TFA)', 'DIPG 17', 67.72, 'Endogenous Metabolite; NF-κB', 'Metabolic Enzyme/Protease; NF-κB')">67.7%</div>
+<div class="drug-label" title="Dehydroascorbic acid">Dehydroascorbic acid</div>
+<div class="heatmap-cell" style="background-color: #F46D43" 
+                           title="Dehydroascorbic acid: DIPG 4 = 33.15% inhibition"
+                           onclick="showTooltip(event, 'Dehydroascorbic acid', 'DIPG 4', 33.15, 'Endogenous Metabolite', 'Metabolic Enzyme/Protease')">33.1%</div>
+<div class="heatmap-cell" style="background-color: #F46D43" 
+                           title="Dehydroascorbic acid: DIPG 17 = 21.24% inhibition"
+                           onclick="showTooltip(event, 'Dehydroascorbic acid', 'DIPG 17', 21.24, 'Endogenous Metabolite', 'Metabolic Enzyme/Protease')">21.2%</div>
+<div class="drug-label" title="Progesterone">Progesterone</div>
+<div class="heatmap-cell" style="background-color: #FDAE61" 
+                           title="Progesterone: DIPG 4 = 16.35% inhibition"
+                           onclick="showTooltip(event, 'Progesterone', 'DIPG 4', 16.35, 'Endogenous Metabolite; Progesterone Receptor', 'Metabolic Enzyme/Protease; Vitamin D Related/Nuclear Receptor')">16.4%</div>
+<div class="heatmap-cell" style="background-color: #FDAE61" 
+                           title="Progesterone: DIPG 17 = 7.32% inhibition"
+                           onclick="showTooltip(event, 'Progesterone', 'DIPG 17', 7.32, 'Endogenous Metabolite; Progesterone Receptor', 'Metabolic Enzyme/Protease; Vitamin D Related/Nuclear Receptor')">7.3%</div>
+<div class="drug-label" title="Vardenafil (hydrochloride)">Vardenafil (hydrochloride)</div>
+<div class="heatmap-cell" style="background-color: #F46D43" 
+                           title="Vardenafil (hydrochloride): DIPG 4 = 17.66% inhibition"
+                           onclick="showTooltip(event, 'Vardenafil (hydrochloride)', 'DIPG 4', 17.66, 'Endogenous Metabolite; Phosphodiesterase (PDE)', 'Metabolic Enzyme/Protease')">17.7%</div>
+<div class="heatmap-cell" style="background-color: #FDAE61" 
+                           title="Vardenafil (hydrochloride): DIPG 17 = 5.37% inhibition"
+                           onclick="showTooltip(event, 'Vardenafil (hydrochloride)', 'DIPG 17', 5.37, 'Endogenous Metabolite; Phosphodiesterase (PDE)', 'Metabolic Enzyme/Protease')">5.4%</div>
+<div class="drug-label" title="Choline (chloride)">Choline (chloride)</div>
+<div class="heatmap-cell" style="background-color: #FDAE61" 
+                           title="Choline (chloride): DIPG 4 = 4.15% inhibition"
+                           onclick="showTooltip(event, 'Choline (chloride)', 'DIPG 4', 4.15, 'Endogenous Metabolite; nAChR', 'Membrane Transporter/Ion Channel; Metabolic Enzyme/Protease; Neuronal Signaling')">4.2%</div>
+<div class="heatmap-cell" style="background-color: #FDAE61" 
+                           title="Choline (chloride): DIPG 17 = 0.42% inhibition"
+                           onclick="showTooltip(event, 'Choline (chloride)', 'DIPG 17', 0.42, 'Endogenous Metabolite; nAChR', 'Membrane Transporter/Ion Channel; Metabolic Enzyme/Protease; Neuronal Signaling')">0.4%</div>
+<div class="drug-label" title="Miquelianin">Miquelianin</div>
+<div class="heatmap-cell" style="background-color: #FDAE61" 
+                           title="Miquelianin: DIPG 4 = 5.48% inhibition"
+                           onclick="showTooltip(event, 'Miquelianin', 'DIPG 4', 5.48, 'Endogenous Metabolite', 'Metabolic Enzyme/Protease')">5.5%</div>
+<div class="heatmap-cell" style="background-color: #FDAE61" 
+                           title="Miquelianin: DIPG 17 = -3.04% inhibition"
+                           onclick="showTooltip(event, 'Miquelianin', 'DIPG 17', -3.04, 'Endogenous Metabolite', 'Metabolic Enzyme/Protease')">-3.0%</div>
+<div class="drug-label" title="Substance P">Substance P</div>
+<div class="heatmap-cell" style="background-color: #FDAE61" 
+                           title="Substance P: DIPG 4 = 3.51% inhibition"
+                           onclick="showTooltip(event, 'Substance P', 'DIPG 4', 3.51, 'Endogenous Metabolite; Neurokinin Receptor', 'GPCR/G Protein; Metabolic Enzyme/Protease; Neuronal Signaling')">3.5%</div>
+<div class="heatmap-cell" style="background-color: #FDAE61" 
+                           title="Substance P: DIPG 17 = -4.75% inhibition"
+                           onclick="showTooltip(event, 'Substance P', 'DIPG 17', -4.75, 'Endogenous Metabolite; Neurokinin Receptor', 'GPCR/G Protein; Metabolic Enzyme/Protease; Neuronal Signaling')">-4.8%</div>
+<div class="drug-label" title="γ-Aminobutyric acid">γ-Aminobutyric acid</div>
+<div class="heatmap-cell" style="background-color: #FDAE61" 
+                           title="γ-Aminobutyric acid: DIPG 4 = 1.22% inhibition"
+                           onclick="showTooltip(event, 'γ-Aminobutyric acid', 'DIPG 4', 1.22, 'Endogenous Metabolite; GABA Receptor', 'Membrane Transporter/Ion Channel; Metabolic Enzyme/Protease; Neuronal Signaling')">1.2%</div>
+<div class="heatmap-cell" style="background-color: #FDAE61" 
+                           title="γ-Aminobutyric acid: DIPG 17 = -2.76% inhibition"
+                           onclick="showTooltip(event, 'γ-Aminobutyric acid', 'DIPG 17', -2.76, 'Endogenous Metabolite; GABA Receptor', 'Membrane Transporter/Ion Channel; Metabolic Enzyme/Protease; Neuronal Signaling')">-2.8%</div>
+<div class="drug-label" title="Ketotifen (fumarate)">Ketotifen (fumarate)</div>
+<div class="heatmap-cell" style="background-color: #FDAE61" 
+                           title="Ketotifen (fumarate): DIPG 4 = -5.25% inhibition"
+                           onclick="showTooltip(event, 'Ketotifen (fumarate)', 'DIPG 4', -5.25, 'Endogenous Metabolite; Histamine Receptor; Influenza Virus; SARS-CoV', 'Anti-infection; GPCR/G Protein; Immunology/Inflammation; Metabolic Enzyme/Protease; Neuronal Signaling')">-5.3%</div>
+<div class="heatmap-cell" style="background-color: #FDAE61" 
+                           title="Ketotifen (fumarate): DIPG 17 = 1.52% inhibition"
+                           onclick="showTooltip(event, 'Ketotifen (fumarate)', 'DIPG 17', 1.52, 'Endogenous Metabolite; Histamine Receptor; Influenza Virus; SARS-CoV', 'Anti-infection; GPCR/G Protein; Immunology/Inflammation; Metabolic Enzyme/Protease; Neuronal Signaling')">1.5%</div>
+<div class="drug-label" title="L-Aspartic acid">L-Aspartic acid</div>
+<div class="heatmap-cell" style="background-color: #FDAE61" 
+                           title="L-Aspartic acid: DIPG 4 = -6.54% inhibition"
+                           onclick="showTooltip(event, 'L-Aspartic acid', 'DIPG 4', -6.54, 'Endogenous Metabolite', 'Metabolic Enzyme/Protease')">-6.5%</div>
+<div class="heatmap-cell" style="background-color: #FDAE61" 
+                           title="L-Aspartic acid: DIPG 17 = -0.99% inhibition"
+                           onclick="showTooltip(event, 'L-Aspartic acid', 'DIPG 17', -0.99, 'Endogenous Metabolite', 'Metabolic Enzyme/Protease')">-1.0%</div>
+<div class="drug-label" title="Prednisolone acetate">Prednisolone acetate</div>
+<div class="heatmap-cell" style="background-color: #FDAE61" 
+                           title="Prednisolone acetate: DIPG 4 = -4.64% inhibition"
+                           onclick="showTooltip(event, 'Prednisolone acetate', 'DIPG 4', -4.64, 'Endogenous Metabolite; Glucocorticoid Receptor', 'Immunology/Inflammation; Metabolic Enzyme/Protease; Vitamin D Related/Nuclear Receptor')">-4.6%</div>
+<div class="heatmap-cell" style="background-color: #FDAE61" 
+                           title="Prednisolone acetate: DIPG 17 = -3.41% inhibition"
+                           onclick="showTooltip(event, 'Prednisolone acetate', 'DIPG 17', -3.41, 'Endogenous Metabolite; Glucocorticoid Receptor', 'Immunology/Inflammation; Metabolic Enzyme/Protease; Vitamin D Related/Nuclear Receptor')">-3.4%</div>
+<div class="drug-label" title="Ferulic acid">Ferulic acid</div>
+<div class="heatmap-cell" style="background-color: #FDAE61" 
+                           title="Ferulic acid: DIPG 4 = 12.78% inhibition"
+                           onclick="showTooltip(event, 'Ferulic acid', 'DIPG 4', 12.78, 'Endogenous Metabolite; FGFR; Reactive Oxygen Species', 'Immunology/Inflammation; Metabolic Enzyme/Protease; NF-κB; Protein Tyrosine Kinase/RTK')">12.8%</div>
+<div class="heatmap-cell" style="background-color: #FEE08B" 
+                           title="Ferulic acid: DIPG 17 = -23.40% inhibition"
+                           onclick="showTooltip(event, 'Ferulic acid', 'DIPG 17', -23.40, 'Endogenous Metabolite; FGFR; Reactive Oxygen Species', 'Immunology/Inflammation; Metabolic Enzyme/Protease; NF-κB; Protein Tyrosine Kinase/RTK')">-23.4%</div>
+<div class="drug-label" title="Prednisolone">Prednisolone</div>
+<div class="heatmap-cell" style="background-color: #FDAE61" 
+                           title="Prednisolone: DIPG 4 = 3.14% inhibition"
+                           onclick="showTooltip(event, 'Prednisolone', 'DIPG 4', 3.14, 'Endogenous Metabolite; Glucocorticoid Receptor', 'Immunology/Inflammation; Metabolic Enzyme/Protease; Vitamin D Related/Nuclear Receptor')">3.1%</div>
+<div class="heatmap-cell" style="background-color: #FEE08B" 
+                           title="Prednisolone: DIPG 17 = -13.89% inhibition"
+                           onclick="showTooltip(event, 'Prednisolone', 'DIPG 17', -13.89, 'Endogenous Metabolite; Glucocorticoid Receptor', 'Immunology/Inflammation; Metabolic Enzyme/Protease; Vitamin D Related/Nuclear Receptor')">-13.9%</div>
+<div class="drug-label" title="Emtricitabine">Emtricitabine</div>
+<div class="heatmap-cell" style="background-color: #FDAE61" 
+                           title="Emtricitabine: DIPG 4 = -5.77% inhibition"
+                           onclick="showTooltip(event, 'Emtricitabine', 'DIPG 4', -5.77, 'Endogenous Metabolite; HIV; Reverse Transcriptase', 'Anti-infection; Metabolic Enzyme/Protease')">-5.8%</div>
+<div class="heatmap-cell" style="background-color: #FDAE61" 
+                           title="Emtricitabine: DIPG 17 = -5.80% inhibition"
+                           onclick="showTooltip(event, 'Emtricitabine', 'DIPG 17', -5.80, 'Endogenous Metabolite; HIV; Reverse Transcriptase', 'Anti-infection; Metabolic Enzyme/Protease')">-5.8%</div>
+<div class="drug-label" title="Atropine">Atropine</div>
+<div class="heatmap-cell" style="background-color: #FEE08B" 
+                           title="Atropine: DIPG 4 = -13.77% inhibition"
+                           onclick="showTooltip(event, 'Atropine', 'DIPG 4', -13.77, 'Endogenous Metabolite; mAChR', 'GPCR/G Protein; Metabolic Enzyme/Protease; Neuronal Signaling')">-13.8%</div>
+<div class="heatmap-cell" style="background-color: #FDAE61" 
+                           title="Atropine: DIPG 17 = -3.13% inhibition"
+                           onclick="showTooltip(event, 'Atropine', 'DIPG 17', -3.13, 'Endogenous Metabolite; mAChR', 'GPCR/G Protein; Metabolic Enzyme/Protease; Neuronal Signaling')">-3.1%</div>
+<div class="drug-label" title="L-Aspartic aicd (sodium)">L-Aspartic aicd (sodium)</div>
+<div class="heatmap-cell" style="background-color: #FEE08B" 
+                           title="L-Aspartic aicd (sodium): DIPG 4 = -19.69% inhibition"
+                           onclick="showTooltip(event, 'L-Aspartic aicd (sodium)', 'DIPG 4', -19.69, 'Endogenous Metabolite', 'Metabolic Enzyme/Protease')">-19.7%</div>
+<div class="heatmap-cell" style="background-color: #FDAE61" 
+                           title="L-Aspartic aicd (sodium): DIPG 17 = 0.73% inhibition"
+                           onclick="showTooltip(event, 'L-Aspartic aicd (sodium)', 'DIPG 17', 0.73, 'Endogenous Metabolite', 'Metabolic Enzyme/Protease')">0.7%</div>
+<div class="drug-label" title="Vitamin B12">Vitamin B12</div>
+<div class="heatmap-cell" style="background-color: #FEE08B" 
+                           title="Vitamin B12: DIPG 4 = -9.67% inhibition"
+                           onclick="showTooltip(event, 'Vitamin B12', 'DIPG 4', -9.67, 'Endogenous Metabolite', 'Metabolic Enzyme/Protease')">-9.7%</div>
+<div class="heatmap-cell" style="background-color: #FEE08B" 
+                           title="Vitamin B12: DIPG 17 = -12.34% inhibition"
+                           onclick="showTooltip(event, 'Vitamin B12', 'DIPG 17', -12.34, 'Endogenous Metabolite', 'Metabolic Enzyme/Protease')">-12.3%</div>
+<div class="drug-label" title="Daidzein">Daidzein</div>
+<div class="heatmap-cell" style="background-color: #3288BD" 
+                           title="Daidzein: DIPG 4 = -46.02% inhibition"
+                           onclick="showTooltip(event, 'Daidzein', 'DIPG 4', -46.02, 'Endogenous Metabolite; PPAR', 'Cell Cycle/DNA Damage; Metabolic Enzyme/Protease; Vitamin D Related/Nuclear Receptor')">-46.0%</div>
+<div class="heatmap-cell" style="background-color: #FDAE61" 
+                           title="Daidzein: DIPG 17 = 10.27% inhibition"
+                           onclick="showTooltip(event, 'Daidzein', 'DIPG 17', 10.27, 'Endogenous Metabolite; PPAR', 'Cell Cycle/DNA Damage; Metabolic Enzyme/Protease; Vitamin D Related/Nuclear Receptor')">10.3%</div>
+<div class="drug-label" title="Ferulic acid (sodium)">Ferulic acid (sodium)</div>
+<div class="heatmap-cell" style="background-color: #FEE08B" 
+                           title="Ferulic acid (sodium): DIPG 4 = -24.89% inhibition"
+                           onclick="showTooltip(event, 'Ferulic acid (sodium)', 'DIPG 4', -24.89, 'Endogenous Metabolite; FGFR; Reactive Oxygen Species', 'Immunology/Inflammation; Metabolic Enzyme/Protease; NF-κB; Protein Tyrosine Kinase/RTK')">-24.9%</div>
+<div class="heatmap-cell" style="background-color: #FEE08B" 
+                           title="Ferulic acid (sodium): DIPG 17 = -20.04% inhibition"
+                           onclick="showTooltip(event, 'Ferulic acid (sodium)', 'DIPG 17', -20.04, 'Endogenous Metabolite; FGFR; Reactive Oxygen Species', 'Immunology/Inflammation; Metabolic Enzyme/Protease; NF-κB; Protein Tyrosine Kinase/RTK')">-20.0%</div>
+<div class="drug-label" title="Anserine">Anserine</div>
+<div class="heatmap-cell" style="background-color: #3288BD" 
+                           title="Anserine: DIPG 4 = -59.36% inhibition"
+                           onclick="showTooltip(event, 'Anserine', 'DIPG 4', -59.36, 'Endogenous Metabolite', 'Metabolic Enzyme/Protease')">-59.4%</div>
+<div class="heatmap-cell" style="background-color: #FEE08B" 
+                           title="Anserine: DIPG 17 = -22.17% inhibition"
+                           onclick="showTooltip(event, 'Anserine', 'DIPG 17', -22.17, 'Endogenous Metabolite', 'Metabolic Enzyme/Protease')">-22.2%</div>
+
+                </div>
+            </div>
+            
+            <div class="legend">
+                <h3>Cell Inhibition Scale (Colorblind-Friendly)</h3>
+                <div class="color-scale">
+                    <div style="background-color: #D73027;">Excellent<br>(> 42.3%)</div>
+                    <div style="background-color: #F46D43;">Good<br>(16.9 - 42.3%)</div>
+                    <div style="background-color: #FDAE61;">Moderate<br>(-8.5 - 16.9%)</div>
+                    <div style="background-color: #FEE08B;">Poor<br>(-33.9 - -8.5%)</div>
+                    <div style="background-color: #3288BD;">Growth<br>(< -33.9%)</div>
+                </div>
+                <p style="text-align: center; margin-top: 15px; color: #000000;">
+                    <strong>Note:</strong> Positive values indicate cell inhibition (good), negative values indicate cell growth (bad).
+                    <br>Click on cells for detailed drug information.
+                </p>
+            </div>
+            
+        </div>
+        
+        <div class="tooltip" id="tooltip"></div>
+        
+        <script>
+            function showTooltip(event, drugName, cellLine, score, targets, pathways) {
+                const tooltip = document.getElementById('tooltip');
+                const inhibitionText = score >= 0 ? `${score.toFixed(1)}% inhibition` : `${Math.abs(score).toFixed(1)}% growth`;
+                const effectivenessText = score >= 0 ? 'Effective' : 'Ineffective';
+                
+                tooltip.innerHTML = `
+                    <strong>${drugName}</strong><br>
+                    <strong>Cell Line:</strong> ${cellLine}<br>
+                    <strong>Result:</strong> ${inhibitionText} (${effectivenessText})<br>
+                    <strong>Targets:</strong> ${targets}<br>
+                    <strong>Pathways:</strong> ${pathways}
+                `;
+                tooltip.style.left = event.pageX + 15 + 'px';
+                tooltip.style.top = event.pageY + 15 + 'px';
+                tooltip.style.display = 'block';
+                
+                setTimeout(() => {
+                    tooltip.style.display = 'none';
+                }, 8000);
+            }
+            
+            document.addEventListener('click', function(event) {
+                if (!event.target.classList.contains('heatmap-cell')) {
+                    document.getElementById('tooltip').style.display = 'none';
+                }
+            });
+        </script>
+    </body>
+    </html>
+    
